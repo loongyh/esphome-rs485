@@ -71,13 +71,6 @@ void Chenyang::on_uart_multi_byte(uint8_t byte) {
       } else
         this->rx_buffer_.push_back(byte);
       break;
-    case 7:
-    case 12:
-      if (byte != 0x78)
-        this->rx_buffer_.clear();
-      else
-        this->rx_buffer_.push_back(byte);
-      break;
     case 13:
       if (byte == calc_checksum(this->rx_buffer_))
         this->process_status_();
