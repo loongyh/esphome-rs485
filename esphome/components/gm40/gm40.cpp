@@ -18,6 +18,7 @@ uint8_t calc_checksum(std::vector<uint8_t> &frame) {
 
 CoverTraits GM40::get_traits() {
   auto traits = CoverTraits();
+  traits.set_supports_stop(true);
   traits.set_supports_position(true);
   return traits;
 }
