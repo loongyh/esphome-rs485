@@ -53,8 +53,10 @@ void Dooya::control(const CoverCall &call) {
 }
 
 void Dooya::send_update() {
-  uint8_t data[3] = {READ, this->current_request_, 0x01};
-  this->send_command_(data, 3);
+  if (this->current_operation != COVER_OPERATION_IDLE) {
+    uint8_t data[3] = {READ, this->current_request_, 0x01};
+    this->send_command_(data, 3);
+  }
 }
 
 void Dooya::on_uart_multi_byte(uint8_t byte) {

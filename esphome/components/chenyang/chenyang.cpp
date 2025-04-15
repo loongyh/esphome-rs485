@@ -16,40 +16,42 @@ uint8_t calc_checksum(std::vector<uint8_t> &frame) {
   return checksum;
 }
 
-CoverTraits Chenyang::get_traits() {
+CoverTraits ChenyangCover::get_traits() {
   auto traits = CoverTraits();
   traits.set_supports_stop(true);
   traits.set_supports_position(true);
   return traits;
 }
 
-void Chenyang::control(const CoverCall &call) {
+void ChenyangCover::control(const CoverCall &call) {
   if (call.get_stop()) {
     uint8_t data[2] = {STOP, 0x00};
-    this->send_command_(data, 2);
+    this->send_command(data, 2);
   } else if (call.get_position().has_value()) {
     this->target_position_ = *call.get_position();
     if (this->target_position_ != this->position) {
       if (this->target_position_ == COVER_OPEN) {
         uint8_t data[2] = {OPEN, 0x00};
-        this->send_command_(data, 2);
+        this->send_command(data, 2);
       } else if (this->target_position_ == COVER_CLOSED) {
         uint8_t data[2] = {CLOSE, 0x00};
-        this->send_command_(data, 2);
+        this->send_command(data, 2);
       } else {
         uint8_t data[2] = {SET_POSITION, (uint8_t)(this->target_position_ * 100)};
-        this->send_command_(data, 2);
+        this->send_command(data, 2);
       }
     }
   }
 }
 
-void Chenyang::send_update() {
-  uint8_t data[2] = {GET_STATUS, 0x00};
-  this->send_command_(data, 2);
+void ChenyangCover::send_update() {
+  if (this->current_operation != COVER_OPERATION_IDLE) {
+    uint8_t data[2] = {GET_STATUS, 0x00};
+    this->send_command(data, 2);
+  }
 }
 
-void Chenyang::on_uart_multi_byte(uint8_t byte) {
+void ChenyangCover::on_uart_multi_byte(uint8_t byte) {
   size_t at = this->rx_buffer_.size();
   switch (at) {
     case 0:
@@ -84,7 +86,7 @@ void Chenyang::on_uart_multi_byte(uint8_t byte) {
   }
 }
 
-void Chenyang::process_response_() {
+void ChenyangCover::process_response_() {
   this->parent_->ready_to_tx = true;
   switch (this->rx_buffer_[2]) {
     case OPEN:
@@ -101,7 +103,71 @@ void Chenyang::process_response_() {
         this->current_operation = COVER_OPERATION_OPENING;
       else
         this->current_operation = COVER_OPERATION_CLOSING;
+#ifdef USE_BINARY_SENSOR
+      if (this->positioning_binary_sensor_ != nullptr)
+        this->positioning_binary_sensor_->publish_state(this->rx_buffer_[3] == UNKNOWN_POSITION);
+#endif
       break;
+    case FACTORY_RESET:
+      ESP_LOGI(TAG, "Factory reset successful");
+      break;
+    case RESTART:
+      ESP_LOGI(TAG, "Restart successful");
+      break;
+    case RAIN_DETECTED:
+      ESP_LOGI(TAG, "Rain detected");
+      break;
+    case OBSTRUCTION_DETECTED:
+      ESP_LOGW(TAG, "Obstruction detected");
+      break;
+#ifdef USE_NUMBER
+    case SPEED:
+      if (this->speed_number_ != nullptr)
+        this->speed_number_->publish_state((float) this->rx_buffer_[3]);
+      break;
+    case TORQUE:
+      if (this->torque_number_ != nullptr)
+        this->torque_number_->publish_state((float) this->rx_buffer_[3]);
+      break;
+#endif
+#ifdef USE_SWITCH
+    case LED_INDICATOR:
+      if (this->led_indicator_switch_ != nullptr)
+        this->led_indicator_switch_->publish_state(this->rx_buffer_[3] == 0x01);
+      break;
+    case INVERT_DIRECTION:
+      if (this->invert_direction_switch_ != nullptr)
+        this->invert_direction_switch_->publish_state(this->rx_buffer_[3] == 0x01);
+      break;
+    case PULL_TO_START:
+      if (this->pull_to_start_switch_ != nullptr)
+        this->pull_to_start_switch_->publish_state(this->rx_buffer_[3] == 0x00);
+      break;
+    case CLOSE_ON_POWER_ON:
+      if (this->close_on_power_on_switch_ != nullptr)
+        this->close_on_power_on_switch_->publish_state(this->rx_buffer_[3] == 0x01);
+      break;
+    case OPEN_ON_POWER_ON:
+      if (this->open_on_power_on_switch_ != nullptr)
+        this->open_on_power_on_switch_->publish_state(this->rx_buffer_[3] == 0x01);
+      break;
+    case RAIN_SENSOR:
+      if (this->rain_sensor_switch_ != nullptr)
+        this->rain_sensor_switch_->publish_state(this->rx_buffer_[3] == 0x00);
+      break;
+    case RAIN_INVERT_DIRECTION:
+      if (this->rain_invert_direction_switch_ != nullptr)
+        this->rain_invert_direction_switch_->publish_state(this->rx_buffer_[3] == 0x01);
+      break;
+    case LOCK:
+      if (this->lock_switch_ != nullptr)
+        this->lock_switch_->publish_state(this->rx_buffer_[3] == 0x01);
+      break;
+    case POWER_OFF_UNLOCK:
+      if (this->power_off_unlock_switch_ != nullptr)
+        this->power_off_unlock_switch_->publish_state(this->rx_buffer_[3] == 0x01);
+      break;
+#endif
     default:
       ESP_LOGE(TAG, "Invalid control operation received");
       return;
@@ -109,7 +175,7 @@ void Chenyang::process_response_() {
   this->publish_state(false);
 }
 
-void Chenyang::process_status_() {
+void ChenyangCover::process_status_() {
   this->parent_->ready_to_tx = true;
   bool publish_state = false;
   switch (this->rx_buffer_[2]) {
@@ -131,32 +197,47 @@ void Chenyang::process_status_() {
         publish_state = true;
       }
       break;
-    case SET_POSITION:
-      if (this->target_position_ > this->position)
-        this->current_operation = COVER_OPERATION_OPENING;
-      else
-        this->current_operation = COVER_OPERATION_CLOSING;
-      break;
     default:
       ESP_LOGE(TAG, "Invalid status operation received");
       return;
   }
-  float pos = 0.5f;
-  if (this->rx_buffer_[3] != UNKNOWN_POSITION) {
-    pos = clamp((float) this->rx_buffer_[3] / 100, 0.0f, 1.0f);
-    if (this->unknown_position_binary_sensor_ != nullptr)
-      this->unknown_position_binary_sensor_->publish_state(false);
-  } else if (this->unknown_position_binary_sensor_ != nullptr)
-    this->unknown_position_binary_sensor_->publish_state(true);
+  bool unknown_position = this->rx_buffer_[3] == UNKNOWN_POSITION;
+  float pos = unknown_position ? 0.5f : clamp((float) this->rx_buffer_[3] / 100, 0.0f, 1.0f);
   if (this->position != pos) {
     this->position = pos;
     publish_state = true;
   }
   if (publish_state)
     this->publish_state(false);
+#ifdef USE_BINARY_SENSOR
+  if (this->positioning_binary_sensor_ != nullptr)
+    this->positioning_binary_sensor_->publish_state(unknown_position);
+#endif
+#ifdef USE_NUMBER
+  if (this->speed_number_ != nullptr)
+    this->speed_number_->publish_state((float) this->rx_buffer_[4]);
+  if (this->torque_number_ != nullptr)
+    this->torque_number_->publish_state((float) this->rx_buffer_[5]);
+#endif
+#ifdef USE_SWITCH
+  if (this->invert_direction_switch_ != nullptr)
+    this->invert_direction_switch_->publish_state(this->rx_buffer_[6] == 0x01);
+  if (this->pull_to_start_switch_ != nullptr)
+    this->pull_to_start_switch_->publish_state(this->rx_buffer_[7] == 0x00);
+  if (this->close_on_power_on_switch_ != nullptr)
+    this->close_on_power_on_switch_->publish_state(this->rx_buffer_[8] == 0x01);
+  if (this->open_on_power_on_switch_ != nullptr)
+    this->open_on_power_on_switch_->publish_state(this->rx_buffer_[9] == 0x01);
+  if (this->rain_sensor_switch_ != nullptr)
+    this->rain_sensor_switch_->publish_state(this->rx_buffer_[10] == 0x00);
+  if (this->rain_invert_direction_switch_ != nullptr)
+    this->rain_invert_direction_switch_->publish_state(this->rx_buffer_[11] == 0x01);
+  if (this->lock_switch_ != nullptr)
+    this->lock_switch_->publish_state(this->rx_buffer_[12] == 0x01);
+#endif
 }
 
-void Chenyang::send_command_(const uint8_t *data, uint8_t len) {
+void ChenyangCover::send_command(const uint8_t *data, uint8_t len) {
   std::vector<uint8_t> frame = {COMMAND, this->address_};
   for (size_t i = 0; i < len; i++) {
     frame.push_back(data[i]);
@@ -166,10 +247,32 @@ void Chenyang::send_command_(const uint8_t *data, uint8_t len) {
   this->send(frame);
 }
 
-void Chenyang::dump_config() {
+void ChenyangCover::dump_config() {
   ESP_LOGCONFIG(TAG, "Chenyang:");
   ESP_LOGCONFIG(TAG, "  Address: 0x%02X", this->address_);
-  LOG_BINARY_SENSOR("  ", "Binary Sensor:", this->unknown_position_binary_sensor_);
+#ifdef USE_BINARY_SENSOR
+  LOG_BINARY_SENSOR("  ", "Positioning", this->positioning_binary_sensor_);
+#endif
+#ifdef USE_BUTTON
+  LOG_BUTTON("  ", "Get Status Button", this->get_status_button_);
+  LOG_BUTTON("  ", "Factory Reset Button", this->factory_reset_button_);
+  LOG_BUTTON("  ", "Restart Button", this->restart_button_);
+#endif
+#ifdef USE_NUMBER
+  LOG_NUMBER("  ", "Speed Number", this->speed_number_);
+  LOG_NUMBER("  ", "Torque Number", this->torque_number_);
+#endif
+#ifdef USE_SWITCH
+  LOG_SWITCH("  ", "LED Indicator Switch", this->led_indicator_switch_);
+  LOG_SWITCH("  ", "Invert Direction Switch", this->invert_direction_switch_);
+  LOG_SWITCH("  ", "Pull to Start Switch", this->pull_to_start_switch_);
+  LOG_SWITCH("  ", "Close on Power On Switch", this->close_on_power_on_switch_);
+  LOG_SWITCH("  ", "Open on Power On Switch", this->open_on_power_on_switch_);
+  LOG_SWITCH("  ", "Rain Sensor Switch", this->rain_sensor_switch_);
+  LOG_SWITCH("  ", "Rain Invert Direction Switch", this->rain_invert_direction_switch_);
+  LOG_SWITCH("  ", "Lock Switch", this->lock_switch_);
+  LOG_SWITCH("  ", "Power Off Unlock Switch", this->power_off_unlock_switch_);
+#endif
 }
 
 }  // namespace chenyang

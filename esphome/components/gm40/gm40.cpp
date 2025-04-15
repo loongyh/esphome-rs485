@@ -45,8 +45,10 @@ void GM40::control(const CoverCall &call) {
 }
 
 void GM40::send_update() {
-  uint8_t data[5] = {READ, 0x00, SET_POSITION, 0x00, 0x01};
-  this->send_command_(data, 5);
+  if (this->current_operation != COVER_OPERATION_IDLE) {
+    uint8_t data[5] = {READ, 0x00, SET_POSITION, 0x00, 0x01};
+    this->send_command_(data, 5);
+  }
 }
 
 void GM40::on_uart_multi_byte(uint8_t byte) {

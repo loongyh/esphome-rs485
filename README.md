@@ -69,8 +69,56 @@ cover:
 # An automation can be triggered to open and close the window to initialize the positioning.
 binary_sensor:
   - platform: chenyang
-    unknown_position:
-      name: Chenyang Window Unknown Position
+    name: Chenyang Window Unknown Position
+
+# Optional setting entities to configure the window opener on the frontend.
+button:
+  - platform: chenyang
+    type: get_status
+    name: Chenyang Window Get Status
+  - platform: chenyang
+    type: factory_reset
+    name: Chenyang Window Factory Reset
+  - platform: chenyang
+    type: restart
+    name: Chenyang Window Restart
+
+number:
+  - platform: chenyang
+    type: speed
+    name: Chenyang Window Speed
+  - platform: chenyang
+    type: torque
+    name: Chenyang Window Torque
+
+switch:
+  - platform: chenyang
+    type: led_indicator
+    name: Chenyang Window LED Indicator
+  - platform: chenyang
+    type: invert_direction
+    name: Chenyang Window Invert Direction
+  - platform: chenyang
+    type: pull_to_start
+    name: Chenyang Window Pull to Start
+  - platform: chenyang
+    type: close_on_power_on
+    name: Chenyang Window Close on Power On
+  - platform: chenyang
+    type: open_on_power_on
+    name: Chenyang Window Open on Power On
+  - platform: chenyang
+    type: rain_sensor
+    name: Chenyang Window Rain Sensor
+  - platform: chenyang
+    type: rain_invert_direction
+    name: Chenyang Window Rain Invert Direction
+  - platform: chenyang
+    type: lock
+    name: Chenyang Window Lock
+  - platform: chenyang
+    type: power_off_unlock
+    name: Chenyang Window Power Off Unlock
 ```
 
 Dooya:

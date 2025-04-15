@@ -9,13 +9,13 @@ AUTO_LOAD = ["uart_multi"]
 CONF_CHENYANG_ID = "chenyang_id"
 
 chenyang_ns = cg.esphome_ns.namespace("chenyang")
-Chenyang = chenyang_ns.class_(
-    "Chenyang", cover.Cover, cg.Component, uart_multi.UARTMultiDevice
+ChenyangCover = chenyang_ns.class_(
+    "ChenyangCover", cover.Cover, cg.Component, uart_multi.UARTMultiDevice
 )
 
 CONFIG_SCHEMA = cover.COVER_SCHEMA.extend(
     {
-        cv.GenerateID(): cv.declare_id(Chenyang),
+        cv.GenerateID(): cv.declare_id(ChenyangCover),
         cv.Optional(CONF_ADDRESS): cv.hex_uint8_t,
     }
 ).extend(uart_multi.UART_MULTI_DEVICE_SCHEMA)
