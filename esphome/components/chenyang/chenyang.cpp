@@ -214,10 +214,15 @@ void ChenyangCover::process_status_() {
     this->positioning_binary_sensor_->publish_state(unknown_position);
 #endif
 #ifdef USE_NUMBER
-  if (this->speed_number_ != nullptr)
-    this->speed_number_->publish_state((float) this->rx_buffer_[4]);
-  if (this->torque_number_ != nullptr)
-    this->torque_number_->publish_state((float) this->rx_buffer_[5]);
+  if (this->speed_number_ != nullptr) {
+    if ((uint8_t) this->speed_number_->state != this->rx_buffer_[4])
+      this->speed_number_->publish_state((float) this->rx_buffer_[4]);
+  }
+    
+  if (this->torque_number_ != nullptr) {
+    if ((uint8_t) this->torque_number_->state != this->rx_buffer_[5])
+      this->torque_number_->publish_state((float) this->rx_buffer_[5]);
+  }
 #endif
 #ifdef USE_SWITCH
   if (this->invert_direction_switch_ != nullptr)
