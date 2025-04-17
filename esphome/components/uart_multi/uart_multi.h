@@ -15,14 +15,12 @@ class UARTMulti : public uart::UARTDevice, public PollingComponent {
   UARTMulti() = default;
 
   void loop() override;
-
   void update() override;
-
   void dump_config() override;
+  float get_setup_priority() const override;
 
   void register_device(UARTMultiDevice *device) { this->devices_.push_back(device); }
-
-  float get_setup_priority() const override;
+  void set_tx_queue_size(uint8_t tx_queue_size) { this->tx_queue_size_ = tx_queue_size; }
 
   void send(const std::vector<uint8_t> &data);
 
@@ -31,6 +29,7 @@ class UARTMulti : public uart::UARTDevice, public PollingComponent {
  protected:
   std::vector<UARTMultiDevice *> devices_;
   std::queue<std::vector<uint8_t>> tx_buffer_;
+  uint8_t tx_queue_size_{3};
   size_t update_token_{0};
   uint32_t last_tx_{0};
 };

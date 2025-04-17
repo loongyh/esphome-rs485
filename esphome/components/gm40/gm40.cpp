@@ -8,7 +8,7 @@ static const char *const TAG = "gm40.cover";
 
 using namespace esphome::cover;
 
-uint8_t calc_checksum(std::vector<uint8_t> &frame) {
+uint8_t calc_checksum(const std::vector<uint8_t> &frame) {
   uint8_t checksum = 0;
   for (auto i : frame) {
     checksum ^= i;
@@ -37,7 +37,7 @@ void GM40::control(const CoverCall &call) {
         uint8_t data[5] = {CONTROL, 0x00, CLOSE, 0x00, 0x01};
         this->send_command_(data, 5);
       } else {
-        uint8_t data[5] = {CONTROL, 0x00, SET_POSITION, 0x00, (uint8_t)(100 - (this->target_position_ * 100))};
+        uint8_t data[5] = {CONTROL, 0x00, SET_POSITION, 0x00, (uint8_t) (100 - (this->target_position_ * 100))};
         this->send_command_(data, 5);
       }
     }

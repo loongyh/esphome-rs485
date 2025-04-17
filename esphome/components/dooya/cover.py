@@ -8,22 +8,21 @@ CODEOWNERS = ["@loongyh"]
 AUTO_LOAD = ["uart_multi"]
 
 dooya_ns = cg.esphome_ns.namespace("dooya")
-Dooya = dooya_ns.class_("Dooya", cover.Cover, cg.Component, uart_multi.UARTMultiDevice)
+DooyaCover = dooya_ns.class_("DooyaCover", cover.Cover, cg.Component, uart_multi.UARTMultiDevice)
 
 CONFIG_SCHEMA = cover.COVER_SCHEMA.extend(
     {
-        cv.GenerateID(): cv.declare_id(Dooya),
+        cv.GenerateID(): cv.declare_id(DooyaCover),
         cv.Optional(CONF_ADDRESS): cv.hex_uint16_t,
     }
 ).extend(uart_multi.UART_MULTI_DEVICE_SCHEMA)
 
 
-def to_code(config):
+async def to_code(config):
     var = cg.new_Pvariable(config[CONF_ID])
-    yield cg.register_component(var, config)
-    yield uart_multi.register_uart_multi_device(var, config)
-    yield cover.register_cover(var, config)
+    await cg.register_component(var, config)
+    await uart_multi.register_uart_multi_device(var, config)
+    await cover.register_cover(var, config)
 
     if CONF_ADDRESS in config:
-        address = config[CONF_ADDRESS]
-        cg.add(var.set_address(address))
+        cg.add(var.set_address(config[CONF_ADDRESS]))

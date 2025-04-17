@@ -27,7 +27,7 @@ enum ControlType : uint8_t {
   SET_POSITION = 0x04,
 };
 
-class Dooya : public cover::Cover, public Component, public uart_multi::UARTMultiDevice {
+class DooyaCover : public cover::Cover, public Component, public uart_multi::UARTMultiDevice {
  public:
   void dump_config() override;
 

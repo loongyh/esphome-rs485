@@ -8,7 +8,7 @@ static const char *const TAG = "chenyang.cover";
 
 using namespace esphome::cover;
 
-uint8_t calc_checksum(std::vector<uint8_t> &frame) {
+uint8_t calc_checksum(const std::vector<uint8_t> &frame) {
   uint8_t checksum = 0;
   for (auto i : frame) {
     checksum ^= i;
@@ -37,7 +37,7 @@ void ChenyangCover::control(const CoverCall &call) {
         uint8_t data[2] = {CLOSE, 0x00};
         this->send_command(data, 2);
       } else {
-        uint8_t data[2] = {SET_POSITION, (uint8_t)(this->target_position_ * 100)};
+        uint8_t data[2] = {SET_POSITION, (uint8_t) (this->target_position_ * 100)};
         this->send_command(data, 2);
       }
     }
