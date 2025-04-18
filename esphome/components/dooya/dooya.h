@@ -1,5 +1,7 @@
 #pragma once
 
+#include <queue>
+
 #include "esphome/core/component.h"
 #include "esphome/components/cover/cover.h"
 #include "esphome/components/uart_multi/uart_multi.h"
@@ -28,6 +30,8 @@ enum Command : uint8_t {
 
 enum ReadType : uint8_t {
   GET_POSITION = 0x02,
+  INVERT_DIRECTION = 0x03,
+  PULL_TO_START = 0x04,
   GET_STATUS = 0x05,
 };
 
@@ -38,11 +42,6 @@ enum ControlType : uint8_t {
   SET_POSITION = 0x04,
   CLEAR_POSITIONING = 0x07,
   FACTORY_RESET = 0x08,
-};
-
-enum SettingType : uint8_t {
-  INVERT_DIRECTION = 0x03,
-  PULL_TO_START = 0x04,
 };
 
 class DooyaCover : public cover::Cover, public Component, public uart_multi::UARTMultiDevice {
@@ -68,6 +67,7 @@ class DooyaCover : public cover::Cover, public Component, public uart_multi::UAR
 
  public:
   void setup() override;
+  void loop() override;
   void dump_config() override;
   void set_address(uint16_t address) {
     this->address_[0] = (uint8_t)(address >> 8);
@@ -77,6 +77,8 @@ class DooyaCover : public cover::Cover, public Component, public uart_multi::UAR
   void on_uart_multi_byte(uint8_t byte) override;
   cover::CoverTraits get_traits() override;
   void send_command(const uint8_t *data, uint8_t len);
+  std::queue<std::tuple<uint8_t, uint32_t>> read_requests;
+  uint8_t current_write_payload;
 
  protected:
   void control(const cover::CoverCall &call) override;
@@ -87,8 +89,6 @@ class DooyaCover : public cover::Cover, public Component, public uart_multi::UAR
   uint8_t address_[2] = {0xFE, 0xFE};
   std::vector<uint8_t> rx_buffer_;
   float target_position_;
-  uint8_t current_read_request_;
-  uint8_t current_write_payload_;
 };
 
 }  // namespace dooya

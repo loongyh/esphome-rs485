@@ -11,7 +11,7 @@ using namespace esphome::cover;
 
 bool validate_crc(const std::vector<uint8_t> &frame) {
   size_t len = frame.size();
-  return crc16(&frame[0], len - 2) == ((uint16_t) frame[len - 2] << 8 | frame[len - 1]);
+  return crc16(&frame[0], len - 2) == ((uint16_t) frame[len - 1] << 8 | frame[len - 2]);
 }
 
 CoverTraits DooyaCover::get_traits() {
@@ -22,14 +22,16 @@ CoverTraits DooyaCover::get_traits() {
 }
 
 void DooyaCover::setup() {
-  uint8_t data[3] = {READ, GET_STATUS, 0x01};
-  this->send_command(data, 3);
-  data[1] = GET_POSITION;
-  this->send_command(data, 3);
-  data[1] = INVERT_DIRECTION;
-  this->send_command(data, 3);
-  data[1] = PULL_TO_START;
-  this->send_command(data, 3);
+  for (uint8_t read_type : {GET_STATUS, GET_POSITION, INVERT_DIRECTION, PULL_TO_START}) {
+    uint8_t data[3] = {READ, read_type, 0x01};
+    this->send_command(data, 3);
+    this->read_requests.push({read_type, millis()});
+  }
+}
+
+void DooyaCover::loop() {
+  if (!this->read_requests.empty() && millis() - std::get<1>(this->read_requests.front()) > 1000)
+    this->read_requests.pop();
 }
 
 void DooyaCover::control(const CoverCall &call) {
@@ -55,10 +57,11 @@ void DooyaCover::control(const CoverCall &call) {
 
 void DooyaCover::send_update() {
   if (this->current_operation != COVER_OPERATION_IDLE) {
-    uint8_t data[3] = {READ, GET_STATUS, 0x01};
-    this->send_command(data, 3);
-    data[1] = GET_POSITION;
-    this->send_command(data, 3);
+    for (uint8_t read_type : {GET_STATUS, GET_POSITION}) {
+      uint8_t data[3] = {READ, read_type, 0x01};
+      this->send_command(data, 3);
+      this->read_requests.push({read_type, millis()});
+    }
   }
 }
 
@@ -103,7 +106,8 @@ void DooyaCover::on_uart_multi_byte(uint8_t byte) {
       if (validate_crc(this->rx_buffer_)) {
         switch (this->rx_buffer_[3]) {
           case READ:
-            this->process_read_response_();
+            if (!this->read_requests.empty())
+              this->process_read_response_();
             break;
           case WRITE:
             this->process_write_response_();
@@ -123,11 +127,12 @@ void DooyaCover::on_uart_multi_byte(uint8_t byte) {
       break;
     default:
       this->rx_buffer_.push_back(byte);
+      break;
   }
 }
 
 void DooyaCover::process_read_response_() {
-  switch (this->current_read_request_) {
+  switch (std::get<0>(this->read_requests.front())) {
     case GET_POSITION:
       if (this->rx_buffer_[5] != UNKNOWN_POSITION) {
         if ((uint8_t) (this->position * 100) != this->rx_buffer_[5]) {
@@ -177,10 +182,12 @@ void DooyaCover::process_read_response_() {
           ESP_LOGE(TAG, "Invalid status operation received");
           break;
       }
+      break;
     default:
       ESP_LOGE(TAG, "Invalid read response received");
       break;
   }
+  this->read_requests.pop();
 }
 
 void DooyaCover::process_write_response_() {
@@ -188,11 +195,11 @@ void DooyaCover::process_write_response_() {
 #ifdef USE_SWITCH
     case INVERT_DIRECTION:
       if (this->invert_direction_switch_ != nullptr)
-        this->invert_direction_switch_->publish_state(this->current_write_payload_ == 0x01);
+        this->invert_direction_switch_->publish_state(this->current_write_payload == 0x01);
       break;
     case PULL_TO_START:
       if (this->pull_to_start_switch_ != nullptr)
-        this->pull_to_start_switch_->publish_state(this->current_write_payload_ == 0x00);
+        this->pull_to_start_switch_->publish_state(this->current_write_payload == 0x00);
       break;
 #endif
     default:
@@ -236,7 +243,7 @@ void DooyaCover::process_control_response_() {
       break;
     default:
       ESP_LOGE(TAG, "Invalid control response received");
-      return;
+      break;
   }
 }
 
