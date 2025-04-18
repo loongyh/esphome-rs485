@@ -19,8 +19,9 @@ with the following MCUs:
 * Generic ESP32 Dev Kit (ESP32)
 
 ## Supported Devices
-* Dooya Shade RS485 Motor DM35EQL/J & DM45EQL/J
 * Chenyang RS485 Window Opener CP12, CP14, CP16, CP31, CP95
+* Dooya Curtain RS485 Motor DT82TV
+* Dooya Shade RS485 Motor DM35EQL/J & DM45EQL/J
 * GM40 RS485 Curtain Motor
 
 ## Usage
@@ -126,9 +127,35 @@ Dooya:
 ```yaml
 cover:
   - platform: dooya
-    name: Dooya Shade
+    name: Dooya Curtain
     address: 0xFEFE
-    device_class: shade
+    device_class: curtain
+
+# Optional binary sensor for when curtain position is unknown on startup.
+# An automation can be triggered to open and close the curtain to initialize the positioning.
+binary_sensor:
+  - platform: dooya
+    name: Dooya Curtain Unknown Position
+
+# Optional setting entities to configure the curtain on the frontend.
+button:
+  - platform: dooya
+    type: get_status
+    name: Dooya Curtain Get Status
+  - platform: dooya
+    type: clear_positioning
+    name: Dooya Curtain Clear Positioning
+  - platform: dooya
+    type: factory_reset
+    name: Dooya Curtain Factory Reset
+
+switch:
+  - platform: dooya
+    type: invert_direction
+    name: Dooya Curtain Invert Direction
+  - platform: dooya
+    type: pull_to_start
+    name: Dooya Curtain Pull to Start
 ```
 
 GM40:

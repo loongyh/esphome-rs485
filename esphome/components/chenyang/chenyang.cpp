@@ -71,6 +71,7 @@ void ChenyangCover::on_uart_multi_byte(uint8_t byte) {
         else
           ESP_LOGE(TAG, "Checksum failed");
         this->rx_buffer_.clear();
+        this->parent_->ready_to_tx = true;
       } else
         this->rx_buffer_.push_back(byte);
       break;
@@ -80,6 +81,7 @@ void ChenyangCover::on_uart_multi_byte(uint8_t byte) {
       else
         ESP_LOGE(TAG, "Checksum failed");
       this->rx_buffer_.clear();
+      this->parent_->ready_to_tx = true;
       break;
     default:
       this->rx_buffer_.push_back(byte);
@@ -87,7 +89,6 @@ void ChenyangCover::on_uart_multi_byte(uint8_t byte) {
 }
 
 void ChenyangCover::process_response_() {
-  this->parent_->ready_to_tx = true;
   switch (this->rx_buffer_[2]) {
     case OPEN:
       this->current_operation = COVER_OPERATION_OPENING;
@@ -99,10 +100,12 @@ void ChenyangCover::process_response_() {
       this->current_operation = COVER_OPERATION_IDLE;
       break;
     case SET_POSITION:
-      if (this->target_position_ > this->position)
-        this->current_operation = COVER_OPERATION_OPENING;
-      else
-        this->current_operation = COVER_OPERATION_CLOSING;
+      if (this->rx_buffer_[3] != UNKNOWN_POSITION) {
+        if (this->target_position_ > this->position)
+          this->current_operation = COVER_OPERATION_OPENING;
+        else
+          this->current_operation = COVER_OPERATION_CLOSING;
+      }
 #ifdef USE_BINARY_SENSOR
       if (this->positioning_binary_sensor_ != nullptr)
         this->positioning_binary_sensor_->publish_state(this->rx_buffer_[3] == UNKNOWN_POSITION);
@@ -176,7 +179,6 @@ void ChenyangCover::process_response_() {
 }
 
 void ChenyangCover::process_status_() {
-  this->parent_->ready_to_tx = true;
   bool publish_state = false;
   switch (this->rx_buffer_[2]) {
     case OPEN:
@@ -201,17 +203,17 @@ void ChenyangCover::process_status_() {
       ESP_LOGE(TAG, "Invalid status operation received");
       return;
   }
-  bool unknown_position = this->rx_buffer_[3] == UNKNOWN_POSITION;
-  float pos = unknown_position ? 0.5f : clamp((float) this->rx_buffer_[3] / 100, 0.0f, 1.0f);
-  if (this->position != pos) {
-    this->position = pos;
-    publish_state = true;
+  if (this->rx_buffer_[3] != UNKNOWN_POSITION) {
+    if ((uint8_t) (this->position * 100) != this->rx_buffer_[3]) {
+      this->position = clamp((float) this->rx_buffer_[3] / 100, 0.0f, 1.0f);
+      publish_state = true;
+    }
   }
   if (publish_state)
     this->publish_state(false);
 #ifdef USE_BINARY_SENSOR
   if (this->positioning_binary_sensor_ != nullptr)
-    this->positioning_binary_sensor_->publish_state(unknown_position);
+    this->positioning_binary_sensor_->publish_state(this->rx_buffer_[3] == UNKNOWN_POSITION);
 #endif
 #ifdef USE_NUMBER
   if (this->speed_number_ != nullptr) {

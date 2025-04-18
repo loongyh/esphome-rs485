@@ -29,7 +29,7 @@ class UARTMulti : public uart::UARTDevice, public PollingComponent {
  protected:
   std::vector<UARTMultiDevice *> devices_;
   std::queue<std::vector<uint8_t>> tx_buffer_;
-  uint8_t tx_queue_size_{3};
+  uint8_t tx_queue_size_{5};
   size_t update_token_{0};
   uint32_t last_tx_{0};
 };

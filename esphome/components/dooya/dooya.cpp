@@ -21,22 +21,33 @@ CoverTraits DooyaCover::get_traits() {
   return traits;
 }
 
+void DooyaCover::setup() {
+  uint8_t data[3] = {READ, GET_STATUS, 0x01};
+  this->send_command(data, 3);
+  data[1] = GET_POSITION;
+  this->send_command(data, 3);
+  data[1] = INVERT_DIRECTION;
+  this->send_command(data, 3);
+  data[1] = PULL_TO_START;
+  this->send_command(data, 3);
+}
+
 void DooyaCover::control(const CoverCall &call) {
   if (call.get_stop()) {
     uint8_t data[2] = {CONTROL, STOP};
-    this->send_command_(data, 2);
+    this->send_command(data, 2);
   } else if (call.get_position().has_value()) {
     auto pos = *call.get_position();
     if (pos != this->position) {
       if (pos == COVER_OPEN) {
         uint8_t data[2] = {CONTROL, OPEN};
-        this->send_command_(data, 2);
+        this->send_command(data, 2);
       } else if (pos == COVER_CLOSED) {
         uint8_t data[2] = {CONTROL, CLOSE};
-        this->send_command_(data, 2);
+        this->send_command(data, 2);
       } else {
         uint8_t data[3] = {CONTROL, SET_POSITION, (uint8_t) (pos * 100)};
-        this->send_command_(data, 3);
+        this->send_command(data, 3);
       }
     }
   }
@@ -44,8 +55,10 @@ void DooyaCover::control(const CoverCall &call) {
 
 void DooyaCover::send_update() {
   if (this->current_operation != COVER_OPERATION_IDLE) {
-    uint8_t data[3] = {READ, this->current_request_, 0x01};
-    this->send_command_(data, 3);
+    uint8_t data[3] = {READ, GET_STATUS, 0x01};
+    this->send_command(data, 3);
+    data[1] = GET_POSITION;
+    this->send_command(data, 3);
   }
 }
 
@@ -69,7 +82,7 @@ void DooyaCover::on_uart_multi_byte(uint8_t byte) {
         this->rx_buffer_.clear();
       break;
     case 3:
-      if (byte == CONTROL || byte == READ)
+      if (byte == READ || byte == WRITE || byte == CONTROL)
         this->rx_buffer_.push_back(byte);
       else
         this->rx_buffer_.clear();
@@ -78,95 +91,156 @@ void DooyaCover::on_uart_multi_byte(uint8_t byte) {
       this->rx_buffer_.push_back(byte);
       if (this->rx_buffer_[3] == CONTROL && this->rx_buffer_[4] != SET_POSITION) {
         if (validate_crc(this->rx_buffer_))
-          this->process_response_();
+          this->process_control_response_();
         else
           ESP_LOGE(TAG, "Incoming data CRC check failed");
         this->rx_buffer_.clear();
+        this->parent_->ready_to_tx = true;
       }
       break;
     case 7:
       this->rx_buffer_.push_back(byte);
       if (validate_crc(this->rx_buffer_)) {
-        if (this->rx_buffer_[3] == CONTROL)
-          this->process_response_();
-        else
-          this->process_status_();
+        switch (this->rx_buffer_[3]) {
+          case READ:
+            this->process_read_response_();
+            break;
+          case WRITE:
+            this->process_write_response_();
+            break;
+          case CONTROL:
+            this->process_control_response_();
+            break;
+          default:
+            ESP_LOGE(TAG, "Invalid response type received");
+            break;
+        }
       } else {
         ESP_LOGE(TAG, "Incoming data CRC check failed");
       }
       this->rx_buffer_.clear();
+      this->parent_->ready_to_tx = true;
       break;
     default:
       this->rx_buffer_.push_back(byte);
   }
 }
 
-void DooyaCover::process_response_() {
-  this->parent_->ready_to_tx = true;
-  switch (this->rx_buffer_[4]) {
-    case STOP:
-      this->current_operation = COVER_OPERATION_IDLE;
+void DooyaCover::process_read_response_() {
+  switch (this->current_read_request_) {
+    case GET_POSITION:
+      if (this->rx_buffer_[5] != UNKNOWN_POSITION) {
+        if ((uint8_t) (this->position * 100) != this->rx_buffer_[5]) {
+          this->position = clamp((float) this->rx_buffer_[5] / 100, 0.0f, 1.0f);
+          this->publish_state(false);
+        }
+      }
+#ifdef USE_BINARY_SENSOR
+      if (this->positioning_binary_sensor_ != nullptr)
+        this->positioning_binary_sensor_->publish_state(this->rx_buffer_[5] == UNKNOWN_POSITION);
+#endif
       break;
+#ifdef USE_SWITCH
+    case INVERT_DIRECTION:
+      if (this->invert_direction_switch_ != nullptr)
+        this->invert_direction_switch_->publish_state(this->rx_buffer_[5] == 0x01);
+      break;
+    case PULL_TO_START:
+      if (this->pull_to_start_switch_ != nullptr)
+        this->pull_to_start_switch_->publish_state(this->rx_buffer_[5] == 0x00);
+      break;
+#endif
+    case GET_STATUS:
+      switch (this->rx_buffer_[5]) {
+        case 0:
+          if (this->current_operation != COVER_OPERATION_IDLE) {
+            this->current_operation = COVER_OPERATION_IDLE;
+            this->publish_state(false);
+          }
+          break;
+        case 1:
+          if (this->current_operation != COVER_OPERATION_OPENING) {
+            this->current_operation = COVER_OPERATION_OPENING;
+            this->publish_state(false);
+          }
+          break;
+        case 2:
+          if (this->current_operation != COVER_OPERATION_CLOSING) {
+            this->current_operation = COVER_OPERATION_CLOSING;
+            this->publish_state(false);
+          }
+          break;
+        case 3:
+          ESP_LOGW(TAG, "Device is in setting mode");
+          break;
+        default:
+          ESP_LOGE(TAG, "Invalid status operation received");
+          break;
+      }
+    default:
+      ESP_LOGE(TAG, "Invalid read response received");
+      break;
+  }
+}
+
+void DooyaCover::process_write_response_() {
+  switch (this->rx_buffer_[4]) {
+#ifdef USE_SWITCH
+    case INVERT_DIRECTION:
+      if (this->invert_direction_switch_ != nullptr)
+        this->invert_direction_switch_->publish_state(this->current_write_payload_ == 0x01);
+      break;
+    case PULL_TO_START:
+      if (this->pull_to_start_switch_ != nullptr)
+        this->pull_to_start_switch_->publish_state(this->current_write_payload_ == 0x00);
+      break;
+#endif
+    default:
+      ESP_LOGE(TAG, "Invalid write response received");
+      break;
+  }
+}
+
+void DooyaCover::process_control_response_() {
+  switch (this->rx_buffer_[4]) {
     case OPEN:
       this->current_operation = COVER_OPERATION_OPENING;
+      this->publish_state(false);
       break;
     case CLOSE:
       this->current_operation = COVER_OPERATION_CLOSING;
+      this->publish_state(false);
+      break;
+    case STOP:
+      this->current_operation = COVER_OPERATION_IDLE;
+      this->publish_state(false);
       break;
     case SET_POSITION:
-      if (this->rx_buffer_[5] > (uint8_t)(this->position * 100))
-        this->current_operation = COVER_OPERATION_OPENING;
-      else
-        this->current_operation = COVER_OPERATION_CLOSING;
+      if (this->rx_buffer_[5] != UNKNOWN_POSITION) {
+        if (this->rx_buffer_[5] > (uint8_t) (this->position * 100))
+          this->current_operation = COVER_OPERATION_OPENING;
+        else
+          this->current_operation = COVER_OPERATION_CLOSING;
+        this->publish_state(false);
+      }
+#ifdef USE_BINARY_SENSOR
+      if (this->positioning_binary_sensor_ != nullptr)
+        this->positioning_binary_sensor_->publish_state(this->rx_buffer_[5] == UNKNOWN_POSITION);
+#endif
+      break;
+    case CLEAR_POSITIONING:
+      ESP_LOGI(TAG, "Positioning cleared");
+      break;
+    case FACTORY_RESET:
+      ESP_LOGI(TAG, "Factory reset successful");
       break;
     default:
-      ESP_LOGE(TAG, "Invalid control operation received");
+      ESP_LOGE(TAG, "Invalid control response received");
       return;
   }
-  this->publish_state(false);
-
 }
 
-void DooyaCover::process_status_() {
-  this->parent_->ready_to_tx = true;
-  if (this->current_request_ == GET_POSITION) {
-    float pos = 0.5f;
-    if (this->rx_buffer_[5] != 0xFF)
-      pos = clamp((float) this->rx_buffer_[5] / 100, 0.0f, 1.0f);
-    if (this->position != pos) {
-      this->position = pos;
-      this->publish_state(false);
-    }
-    this->current_request_ = GET_STATUS;
-  } else {
-    switch (this->rx_buffer_[5]) {
-      case 0:
-        if (this->current_operation != COVER_OPERATION_IDLE) {
-          this->current_operation = COVER_OPERATION_IDLE;
-          this->publish_state(false);
-        }
-        break;
-      case 1:
-        if (this->current_operation != COVER_OPERATION_OPENING) {
-          this->current_operation = COVER_OPERATION_OPENING;
-          this->publish_state(false);
-        }
-        break;
-      case 2:
-        if (this->current_operation != COVER_OPERATION_CLOSING) {
-          this->current_operation = COVER_OPERATION_CLOSING;
-          this->publish_state(false);
-        }
-        break;
-      default:
-        ESP_LOGE(TAG, "Invalid status operation received");
-        return;
-    }
-    this->current_request_ = GET_POSITION;
-  }
-}
-
-void DooyaCover::send_command_(const uint8_t *data, uint8_t len) {
+void DooyaCover::send_command(const uint8_t *data, uint8_t len) {
   std::vector<uint8_t> frame = {START_CODE, this->address_[0], this->address_[1]};
   for (size_t i = 0; i < len; i++) {
     frame.push_back(data[i]);
@@ -181,6 +255,18 @@ void DooyaCover::send_command_(const uint8_t *data, uint8_t len) {
 void DooyaCover::dump_config() {
   ESP_LOGCONFIG(TAG, "Dooya:");
   ESP_LOGCONFIG(TAG, "  Address: 0x%02X%02X", this->address_[0], this->address_[1]);
+#ifdef USE_BINARY_SENSOR
+  LOG_BINARY_SENSOR("  ", "Positioning", this->positioning_binary_sensor_);
+#endif
+#ifdef USE_BUTTON
+  LOG_BUTTON("  ", "Get Status Button", this->get_status_button_);
+  LOG_BUTTON("  ", "Clear Positioning Button", this->clear_positioning_button_);
+  LOG_BUTTON("  ", "Factory Reset Button", this->factory_reset_button_);
+#endif
+#ifdef USE_SWITCH
+  LOG_SWITCH("  ", "Invert Direction Switch", this->invert_direction_switch_);
+  LOG_SWITCH("  ", "Pull to Start Switch", this->pull_to_start_switch_);
+#endif
 }
 
 }  // namespace dooya

@@ -24,6 +24,16 @@ RainInvertDirectionSwitch = chenyang_ns.class_("RainInvertDirectionSwitch", Chen
 LockSwitch = chenyang_ns.class_("LockSwitch", ChenyangSwitch)
 PowerOffUnlockSwitch = chenyang_ns.class_("PowerOffUnlockSwitch", ChenyangSwitch)
 
+CONF_CLOSE_ON_POWER_ON = "close_on_power_on"
+CONF_INVERT_DIRECTION = "invert_direction"
+CONF_LED_INDICATOR = "led_indicator"
+CONF_LOCK = "lock"
+CONF_OPEN_ON_POWER_ON = "open_on_power_on"
+CONF_POWER_OFF_UNLOCK = "power_off_unlock"
+CONF_PULL_TO_START = "pull_to_start"
+CONF_RAIN_INVERT_DIRECTION = "rain_invert_direction"
+CONF_RAIN_SENSOR = "rain_sensor"
+
 ICON_CALENDAR_COLLAPSE_HORIZONTAL = "mdi:calendar-collapse-horizontal"
 ICON_CALENDAR_EXPAND_HORIZONTAL = "mdi:calendar-expand-horizontal"
 ICON_HAND_WAVE = "mdi:hand-wave"
@@ -49,55 +59,55 @@ _SWITCH_SCHEMA = (
 
 CONFIG_SCHEMA = cv.typed_schema(
     {
-        "led_indicator": _SWITCH_SCHEMA.extend(
+        CONF_LED_INDICATOR: _SWITCH_SCHEMA.extend(
             {
                 cv.GenerateID(): cv.declare_id(LedIndicatorSwitch),
                 cv.Optional(CONF_ICON, default=ICON_LED_ON): cv.icon,
             }
         ),
-        "invert_direction": _SWITCH_SCHEMA.extend(
+        CONF_INVERT_DIRECTION: _SWITCH_SCHEMA.extend(
             {
                 cv.GenerateID(): cv.declare_id(InvertDirectionSwitch),
                 cv.Optional(CONF_ICON, default=ICON_SWAP_HORIZONTAL): cv.icon,
             }
         ),
-        "pull_to_start": _SWITCH_SCHEMA.extend(
+        CONF_PULL_TO_START: _SWITCH_SCHEMA.extend(
             {
                 cv.GenerateID(): cv.declare_id(PullToStartSwitch),
                 cv.Optional(CONF_ICON, default=ICON_HAND_WAVE): cv.icon,
             }
         ),
-        "close_on_power_on": _SWITCH_SCHEMA.extend(
+        CONF_CLOSE_ON_POWER_ON: _SWITCH_SCHEMA.extend(
             {
                 cv.GenerateID(): cv.declare_id(CloseOnPowerOnSwitch),
                 cv.Optional(CONF_ICON, default=ICON_CALENDAR_COLLAPSE_HORIZONTAL): cv.icon,
             }
         ),
-        "open_on_power_on": _SWITCH_SCHEMA.extend(
+        CONF_OPEN_ON_POWER_ON: _SWITCH_SCHEMA.extend(
             {
                 cv.GenerateID(): cv.declare_id(OpenOnPowerOnSwitch),
                 cv.Optional(CONF_ICON, default=ICON_CALENDAR_EXPAND_HORIZONTAL): cv.icon,
             }
         ),
-        "rain_sensor": _SWITCH_SCHEMA.extend(
+        CONF_RAIN_SENSOR: _SWITCH_SCHEMA.extend(
             {
                 cv.GenerateID(): cv.declare_id(RainSensorSwitch),
                 cv.Optional(CONF_ICON, default=ICON_WEATHER_POURING): cv.icon,
             }
         ),
-        "rain_invert_direction": _SWITCH_SCHEMA.extend(
+        CONF_RAIN_INVERT_DIRECTION: _SWITCH_SCHEMA.extend(
             {
                 cv.GenerateID(): cv.declare_id(RainInvertDirectionSwitch),
                 cv.Optional(CONF_ICON, default=ICON_SWAP_HORIZONTAL_HIDDEN): cv.icon,
             }
         ),
-        "lock": _SWITCH_SCHEMA.extend(
+        CONF_LOCK: _SWITCH_SCHEMA.extend(
             {
                 cv.GenerateID(): cv.declare_id(LockSwitch),
                 cv.Optional(CONF_ICON, default=ICON_LOCK): cv.icon,
             }
         ),
-        "power_off_unlock": _SWITCH_SCHEMA.extend(
+        CONF_POWER_OFF_UNLOCK: _SWITCH_SCHEMA.extend(
             {
                 cv.GenerateID(): cv.declare_id(PowerOffUnlockSwitch),
                 cv.Optional(CONF_ICON, default=ICON_LOCK_RESET): cv.icon,

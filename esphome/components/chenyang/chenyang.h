@@ -94,7 +94,7 @@ class ChenyangCover : public cover::Cover, public Component, public uart_multi::
 
   uint8_t address_{0xFF};
   std::vector<uint8_t> rx_buffer_;
-  float target_position_{0};
+  float target_position_;
 };
 
 }  // namespace chenyang
