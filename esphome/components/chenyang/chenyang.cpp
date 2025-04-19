@@ -202,6 +202,15 @@ void ChenyangCover::process_status_() {
         publish_state = true;
       }
       break;
+    case SET_POSITION:
+      if (this->current_operation == COVER_OPERATION_IDLE) {
+        if (this->target_position_ > this->position)
+          this->current_operation = COVER_OPERATION_OPENING;
+        else
+          this->current_operation = COVER_OPERATION_CLOSING;
+        publish_state = true;
+      }
+      break;
     default:
       ESP_LOGE(TAG, "Invalid status operation received");
       break;
