@@ -40,7 +40,7 @@ void DooyaCover::control(const CoverCall &call) {
     this->send_command(data, 2);
   } else if (call.get_position().has_value()) {
     auto pos = *call.get_position();
-    if (pos != this->position) {
+    if ((uint8_t) (pos * 100) != (uint8_t) (this->position * 100)) {
       if (pos == COVER_OPEN) {
         uint8_t data[2] = {CONTROL, OPEN};
         this->send_command(data, 2);
@@ -249,9 +249,7 @@ void DooyaCover::process_control_response_() {
 
 void DooyaCover::send_command(const uint8_t *data, uint8_t len) {
   std::vector<uint8_t> frame = {START_CODE, this->address_[0], this->address_[1]};
-  for (size_t i = 0; i < len; i++) {
-    frame.push_back(data[i]);
-  }
+  frame.insert(frame.end(), data, data + len);
   uint16_t crc = crc16(&frame[0], frame.size());
   frame.push_back(crc >> 0);
   frame.push_back(crc >> 8);

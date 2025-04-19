@@ -29,7 +29,7 @@ void ChenyangCover::control(const CoverCall &call) {
     this->send_command(data, 2);
   } else if (call.get_position().has_value()) {
     this->target_position_ = *call.get_position();
-    if (this->target_position_ != this->position) {
+    if ((uint8_t) (this->target_position_ * 100) != (uint8_t) (this->position * 100)) {
       if (this->target_position_ == COVER_OPEN) {
         uint8_t data[2] = {OPEN, 0x00};
         this->send_command(data, 2);
@@ -92,12 +92,15 @@ void ChenyangCover::process_response_() {
   switch (this->rx_buffer_[2]) {
     case OPEN:
       this->current_operation = COVER_OPERATION_OPENING;
+      this->publish_state(false);
       break;
     case CLOSE:
       this->current_operation = COVER_OPERATION_CLOSING;
+      this->publish_state(false);
       break;
     case STOP:
       this->current_operation = COVER_OPERATION_IDLE;
+      this->publish_state(false);
       break;
     case SET_POSITION:
       if (this->rx_buffer_[3] != UNKNOWN_POSITION) {
@@ -105,6 +108,7 @@ void ChenyangCover::process_response_() {
           this->current_operation = COVER_OPERATION_OPENING;
         else
           this->current_operation = COVER_OPERATION_CLOSING;
+        this->publish_state(false);
       }
 #ifdef USE_BINARY_SENSOR
       if (this->positioning_binary_sensor_ != nullptr)
@@ -173,9 +177,8 @@ void ChenyangCover::process_response_() {
 #endif
     default:
       ESP_LOGE(TAG, "Invalid control operation received");
-      return;
+      break;
   }
-  this->publish_state(false);
 }
 
 void ChenyangCover::process_status_() {
@@ -201,7 +204,7 @@ void ChenyangCover::process_status_() {
       break;
     default:
       ESP_LOGE(TAG, "Invalid status operation received");
-      return;
+      break;
   }
   if (this->rx_buffer_[3] != UNKNOWN_POSITION) {
     if ((uint8_t) (this->position * 100) != this->rx_buffer_[3]) {
@@ -220,7 +223,6 @@ void ChenyangCover::process_status_() {
     if ((uint8_t) this->speed_number_->state != this->rx_buffer_[4])
       this->speed_number_->publish_state((float) this->rx_buffer_[4]);
   }
-    
   if (this->torque_number_ != nullptr) {
     if ((uint8_t) this->torque_number_->state != this->rx_buffer_[5])
       this->torque_number_->publish_state((float) this->rx_buffer_[5]);
@@ -246,9 +248,7 @@ void ChenyangCover::process_status_() {
 
 void ChenyangCover::send_command(const uint8_t *data, uint8_t len) {
   std::vector<uint8_t> frame = {COMMAND, this->address_};
-  for (size_t i = 0; i < len; i++) {
-    frame.push_back(data[i]);
-  }
+  frame.insert(frame.end(), data, data + len);
   frame.push_back(calc_checksum(frame));
 
   this->send(frame);

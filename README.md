@@ -171,8 +171,31 @@ cover:
 # An automation can be triggered to open and close the curtain to initialize the positioning.
 binary_sensor:
   - platform: gm40
-    unknown_position:
-      name: GM40 Curtain Unknown Position
+    name: GM40 Curtain Unknown Position
+
+# Optional setting entities to configure the curtain on the frontend.
+button:
+  - platform: gm40
+    type: get_status
+    name: GM40 Curtain Get Status
+  - platform: gm40
+    type: factory_reset
+    name: GM40 Curtain Factory Reset
+  - platform: gm40
+    type: restart
+    name: GM40 Curtain Restart
+
+number:
+  - platform: gm40
+    name: GM40 Curtain Speed
+
+switch:
+  - platform: gm40
+    type: invert_direction
+    name: GM40 Curtain Invert Direction
+  - platform: gm40
+    type: led_indicator
+    name: GM40 Curtain LED Indicator
 ```
 
 On ESP8266 you'll need to disable logging to serial because it conflicts with
