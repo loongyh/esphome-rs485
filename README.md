@@ -36,6 +36,8 @@ The code in this repository makes use of the
 [external components](https://esphome.io/components/external_components.html) feature in the 1.18.0
 version of ESPHome.
 
+v1.1.0 and above requires ESPHome 2025.5.0 or higher.
+
 ### Step 3: Add this repository as an external component
 
 Add the uart_multi component along with the devices you need to your ESPHome config:
