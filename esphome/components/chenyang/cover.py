@@ -13,13 +13,15 @@ ChenyangCover = chenyang_ns.class_(
     "ChenyangCover", cover.Cover, cg.Component, uart_multi.UARTMultiDevice
 )
 
-CONFIG_SCHEMA = cover.COVER_SCHEMA.extend(
-    {
-        cv.GenerateID(): cv.declare_id(ChenyangCover),
-        cv.Optional(CONF_ADDRESS): cv.hex_uint8_t,
-    }
-).extend(uart_multi.UART_MULTI_DEVICE_SCHEMA)
-
+CONFIG_SCHEMA = (
+    cover.cover_schema(ChenyangCover)
+    .extend(
+        {
+            cv.Optional(CONF_ADDRESS): cv.hex_uint8_t,
+        }
+    )
+    .extend(uart_multi.UART_MULTI_DEVICE_SCHEMA)
+)
 
 async def to_code(config):
     var = cg.new_Pvariable(config[CONF_ID])

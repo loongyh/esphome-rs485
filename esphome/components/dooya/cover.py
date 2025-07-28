@@ -11,13 +11,15 @@ CONF_DOOYA_ID = "dooya_id"
 dooya_ns = cg.esphome_ns.namespace("dooya")
 DooyaCover = dooya_ns.class_("DooyaCover", cover.Cover, cg.Component, uart_multi.UARTMultiDevice)
 
-CONFIG_SCHEMA = cover.COVER_SCHEMA.extend(
-    {
-        cv.GenerateID(): cv.declare_id(DooyaCover),
-        cv.Optional(CONF_ADDRESS): cv.hex_uint16_t,
-    }
-).extend(uart_multi.UART_MULTI_DEVICE_SCHEMA)
-
+CONFIG_SCHEMA = (
+    cover.cover_schema(DooyaCover)
+    .extend(
+        {
+            cv.Optional(CONF_ADDRESS): cv.hex_uint16_t,
+        }
+    )
+    .extend(uart_multi.UART_MULTI_DEVICE_SCHEMA)
+)
 
 async def to_code(config):
     var = cg.new_Pvariable(config[CONF_ID])
