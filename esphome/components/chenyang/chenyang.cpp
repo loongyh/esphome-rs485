@@ -182,24 +182,20 @@ void ChenyangCover::process_response_() {
 }
 
 void ChenyangCover::process_status_() {
-  bool publish_state = false;
   switch (this->rx_buffer_[2]) {
     case OPEN:
       if (this->current_operation != COVER_OPERATION_OPENING) {
         this->current_operation = COVER_OPERATION_OPENING;
-        publish_state = true;
       }
       break;
     case CLOSE:
       if (this->current_operation != COVER_OPERATION_CLOSING) {
         this->current_operation = COVER_OPERATION_CLOSING;
-        publish_state = true;
       }
       break;
     case STOP:
       if (this->current_operation != COVER_OPERATION_IDLE) {
         this->current_operation = COVER_OPERATION_IDLE;
-        publish_state = true;
       }
       break;
     case SET_POSITION:
@@ -208,7 +204,6 @@ void ChenyangCover::process_status_() {
           this->current_operation = COVER_OPERATION_OPENING;
         else
           this->current_operation = COVER_OPERATION_CLOSING;
-        publish_state = true;
       }
       break;
     default:
@@ -216,13 +211,12 @@ void ChenyangCover::process_status_() {
       break;
   }
   if (this->rx_buffer_[3] != UNKNOWN_POSITION) {
-    if ((uint8_t) (this->position * 100) != this->rx_buffer_[3]) {
+    if ((uint8_t) (this->position * 100) != this->rx_buffer_[3])
       this->position = clamp((float) this->rx_buffer_[3] / 100, 0.0f, 1.0f);
-      publish_state = true;
-    }
+  } else {
+    this->position = 0.5f;
   }
-  if (publish_state)
-    this->publish_state(false);
+  this->publish_state(false);
 #ifdef USE_BINARY_SENSOR
   if (this->positioning_binary_sensor_ != nullptr)
     this->positioning_binary_sensor_->publish_state(this->rx_buffer_[3] == UNKNOWN_POSITION);

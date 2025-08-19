@@ -181,7 +181,6 @@ void GM40Cover::process_control_response_() {
       ESP_LOGE(TAG, "Invalid control operation received");
       break;
   }
-  this->publish_state(false);
 }
 
 void GM40Cover::process_read_response_() {
@@ -192,8 +191,10 @@ void GM40Cover::process_read_response_() {
           this->position = clamp((float) (100 - this->rx_buffer_[11]) / 100, 0.0f, 1.0f);
         else
           this->current_operation = COVER_OPERATION_IDLE;
-        this->publish_state(false);
+      } else {
+        this->position = 0.5f;
       }
+      this->publish_state(false);
 #ifdef USE_BINARY_SENSOR
       if (this->positioning_binary_sensor_ != nullptr)
         this->positioning_binary_sensor_->publish_state(this->rx_buffer_[11] == UNKNOWN_POSITION);

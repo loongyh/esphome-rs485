@@ -135,11 +135,12 @@ void DooyaCover::process_read_response_() {
   switch (std::get<0>(this->read_requests.front())) {
     case GET_POSITION:
       if (this->rx_buffer_[5] != UNKNOWN_POSITION) {
-        if ((uint8_t) (this->position * 100) != this->rx_buffer_[5]) {
+        if ((uint8_t) (this->position * 100) != this->rx_buffer_[5])
           this->position = clamp((float) this->rx_buffer_[5] / 100, 0.0f, 1.0f);
-          this->publish_state(false);
-        }
+      } else {
+        this->position = 0.5f;
       }
+      this->publish_state(false);
 #ifdef USE_BINARY_SENSOR
       if (this->positioning_binary_sensor_ != nullptr)
         this->positioning_binary_sensor_->publish_state(this->rx_buffer_[5] == UNKNOWN_POSITION);
