@@ -54,15 +54,8 @@ class DooyaCover : public cover::Cover, public Component, public uart_multi::UAR
   SUB_BUTTON(factory_reset)
 #endif
 #ifdef USE_SWITCH
-  SUB_SWITCH(led_indicator)
   SUB_SWITCH(invert_direction)
   SUB_SWITCH(pull_to_start)
-  SUB_SWITCH(close_on_power_on)
-  SUB_SWITCH(open_on_power_on)
-  SUB_SWITCH(rain_sensor)
-  SUB_SWITCH(rain_invert_direction)
-  SUB_SWITCH(lock)
-  SUB_SWITCH(power_off_unlock)
 #endif
 
  public:
