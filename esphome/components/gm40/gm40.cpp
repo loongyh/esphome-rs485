@@ -233,11 +233,9 @@ void GM40Cover::process_status_() {
 }
 
 void GM40Cover::send_command(const uint8_t *data, uint8_t len) {
-  std::vector<uint8_t> frame = {this->address_};
+  std::vector<uint8_t> frame = {START_CODE_H, START_CODE_L, (uint8_t) (len + 1), this->address_};
   frame.insert(frame.end(), data, data + len);
-  uint8_t header[3] = {START_CODE_H, START_CODE_L, (uint8_t) frame.size()};
   frame.push_back(calc_checksum(frame));
-  frame.insert(frame.begin(), header, header + 3);
 
   this->send(frame);
 }
